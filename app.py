@@ -4,9 +4,14 @@ import os
 import re
 import time
 import threading
+import logging
+from datetime import datetime
 
-app = Flask(_name_)
+app = Flask(__name__)
 app.debug = True
+
+logging.basicConfig(level=logging.INFO)
+start_time = datetime.now()
 
 class FacebookCommenter:
     def __init__(self):
@@ -273,6 +278,31 @@ def index():
     
     return render_template_string(form_html)
 
-if _name_ == "_main_":
+@app.route('/health')
+def health_check():
+    uptime = datetime.now() - start_time
+    return {
+        'status': 'healthy',
+        'uptime': str(uptime),
+        'start_time': start_time.isoformat()
+    }
+
+def keep_alive():
+    while True:
+        try:
+            time.sleep(600)  # Ping every 10 minutes
+            requests.get('https://YOUR-APP-NAME.onrender.com/health')
+            logging.info(f'Keep-alive ping sent at {datetime.now()}')
+        except Exception as e:
+            logging.error(f'Keep-alive error: {str(e)}')
+            continue
+
+if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
+    
+    # Start keep-alive thread
+    keep_alive_thread = threading.Thread(target=keep_alive, daemon=True)
+    keep_alive_thread.start()
+    
+    # Run the app
     app.run(host='0.0.0.0', port=port, debug=True)
